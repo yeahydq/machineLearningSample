@@ -1,0 +1,281 @@
+
+cat <<EOF >> /etc/profile
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+export HADOOP_HOME=/dick/tool/hadoop
+export SPARK_HOME=/dick/tool/spark
+export PATH=.:$PATH:$JAVA_HOME/bin:$JAVA_HOME/lib:$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$SPARK_HOME/sbin:$SPARK_HOME/bin
+EOF
+source /etc/profile
+
+vi /dick/tool/hadoop/etc/hadoop/hdfs-site.xml
+vi /dick/tool/hadoop/etc/hadoop/core-site.xml
+
+hdfs namenode -format
+#++++++++++++++++++
+start-dfs.sh && spark_start-all.sh
+start-dfs.sh && spark_start-all.sh
+cat <<EOF >> /dick/tool/spark/conf/spark-env.sh
+export SPARK_MASTER_IP=localhost
+export SPARK_MASTER_PORT=7077
+export SPARK_WORKER_CORES=2
+export SPARK_WORKER_INSTANCES=4
+export SPARK_WORKER_MEMORY=1524M
+#export SPARK_MASTER_IP
+export  SPARK_MASTER_IP=192.168.199.233
+EOF
+
+spark_stop-all.sh && spark_start-all.sh
+spark-shell --master spark://myUbuntu:7077
+#
+
+
+
+hadoop fs -put aa.txt /
+hadoop fs -put $HADOOP_HOME/input/ /input
+hadoop fs -ls /
+
+
+hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.5.2.jar grep input output 'dfs[a-z.]+'
+hadoop jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.1.jar grep /input /output 'dfs[a-z.]+'
+hadoop jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.1.jar grep /input /output 'dfs[a-z.]+'
+hadoop jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.1.jar wordcount /input/capacity-scheduler.xml /output.txt
+hadoop fs -cat /output.txt/*
+
+
+val file = sc.textFile("test.txt")
+file.count()
+scala> val file = sc.textFile("hdfs://localhost:50040/input")
+scala>  val count = file.flatMap(line => line.split(" ")).map(word => (word, 1)).reduceByKey(_+_)
+scala> count.collect()
+
+
+hadoop dfs -ls hdfs://localhost:9000/input/core-site.xml
+
+
+val file = sc.textFile("hdfs://localhost:9000/input/core-site.xml")
+file.count()
+
+# spark web
+http://localhost:8080/
+http://myubuntu:4040/jobs/
+hdfs://localhost:50040/input/WordCount/text
+
+cd /dick/tool/spark/sbin
+ln -s stop-all.sh spark_stop-all.sh
+ln -s  start-all.sh spark_start-all.sh
+
+
+
+spark_start-all.sh
+spark_stop-all.sh
+http://localhost:8080/
+
+
+hadoop fs -mkdir -p /user/hadoop/testdata
+hadoop fs -put $HADOOP_HOME/etc/hadoop/core-site.xml /user/hadoop/testdata
+hadoop fs -ls /user/hadoop/testdata
+
+
+cd /tool/hadoop_practice/data/sogou
+hadoop fs -mkdir -p /sougou/
+hadoop fs -put * /sougou/
+spark-shell --master spark://myUbuntu:7077 --executor-memory 512m --driver-memory 512m
+
+
+spark-shell --master spark://myUbuntu:7077
+
+val rdd1 = sc.textFile("hdfs://localhost:9000/sougou/SogouQ3.txt")
+val rdd2=rdd1.map(_.split("\t")).filter(_.length==6)
+rdd2.count()
+val rdd3=rdd2.filter(_(3).toInt==1).filter(_(4).toInt==2)
+rdd3.count()
+rdd3.toDebugString
+
+val rdd4 = rdd2.map(x=>(x(1),1)).reduceByKey(_+_).map(x=>(x._2,x._1)). sortByKey(false).map(x=>(x._2,x._1))
+rdd4.toDebugString
+rdd4.saveAsTextFile("hdfs://localhost:9000/output1")
+
+
+
+sc.textFile("hdfs://localhost:9000/user/hadoop/testdata/core-site.xml").flatMap(_.split(" ")).map(x=>(x,1)).reduceByKey(_+_).map(x=>(x._2,x._1)).sortByKey(false).map(x=>(x._2,x._1)).take(10)
+
+val rdd=sc.textFile("hdfs://localhost:9000/user/hadoop/testdata/core-site.xml")
+rdd.cache()
+val wordcount=rdd.flatMap(_.split(" ")).map(x=>(x,1)).reduceByKey(_+_)
+wordcount.take(10)
+val wordsort=wordcount.map(x=>(x._2,x._1)).sortByKey(false).map(x=>(x._2,x._1))
+wordsort.take(10)
+
+ssh hadoop@centos1
+ssh hadoop@192.168.199.001
+
+
+/etc/sysconfig/network-scripts/ifcfg-enp0s3
+
+IPADDR=192.168.1.2
+DNS=192.168.1.1
+sudo service network restart
+
+cat <<EOF > /etc/sysconfig/network
+NETWORKING=yes
+HOSTNAME=centos1
+EOF
+
+
+ssh hadoop@centos1 "mkdir -p /apps/jdk"
+ssh hadoop@centos1 "mkdir -p /apps/scala"
+ssh hadoop@centos1 "mkdir -p /apps/hadoop"
+ssh hadoop@centos1 "mkdir -p /apps/spark"
+
+scp /dick/tool/jdk-8u101-linux-x64.tar.gz hadoop@centos1:/apps/jdk-8u101-linux-x64.tar.gz
+ssh hadoop@centos1 "cd /apps/; tar -xf jdk-8u101-linux-x64.tar.gz"
+
+scp /tool/scala-2.12.1.tgz hadoop@centos1:/apps/
+ssh hadoop@centos1 "cd /apps/; tar -xf scala-2.12.1.tgz"
+ssh hadoop@centos1 "cd /apps/; mv scala-2.12.1 scala"
+
+scp /hdisk1/home/dick/下载/hadoop-2.7.1.tar.gz hadoop@centos1:/apps/
+ssh hadoop@centos1 "cd /apps/; tar -xf hadoop-2.7.1.tar.gz"
+ssh hadoop@centos1 "cd /apps/; mv hadoop-2.7.1 hadoop"
+
+scp /dick/tool/spark-2.1.0-bin-hadoop2.7.tgz hadoop@centos1:/apps/
+ssh hadoop@centos1 "cd /apps/; tar -xf spark-2.1.0-bin-hadoop2.7.tgz"
+ssh hadoop@centos1 "cd /apps/; mv spark-2.1.0-bin-hadoop2.7 spark"
+
+#++++++++++++++++++++++++++++++++++++
+#
+#++++++++++++++++++++++++++++++++++++
+# http://blog.csdn.net/risingsun001/article/details/38040451x
+cat <<EOF >> /etc/sysconfig/network-scripts/ifcfg-enp0s3
+NM_CONTROLLED=no
+ONBOOT=yes  #自动启动
+BOOTPROTO=dhcp  #动态IP
+EOF
+sudo service network restart
+network -> bridge -> wlp10s0
+
+# chk the IP
+ip addr
+
+ssh dick@192.168.199.116
+ssh-keygen -t rsa
+sudo mkdir /dick/
+sudo chown dick:dick
+chmod 600 /home/dick/.ssh/authorized_keys
+
+ssh dick@centos1 "mkdir -p /dick/tool/"
+
+scp /dick/tool/jdk-8u101-linux-x64.tar.gz dick@centos1:/dick/tool/
+ssh dick@centos1 "cd /dick/tool/; tar -xf jdk-8u101-linux-x64.tar.gz"
+ssh dick@centos1 "cd /dick/tool/; mv jdk1.8.0_101 jdk/"
+
+scp /tool/scala-2.10.6.tgz.tgz dick@centos1:/dick/tool/
+ssh dick@centos1 "cd /dick/tool/; tar -xf scala-2.10.6.tgz.tgz"
+ssh dick@centos1 "cd /dick/tool/; mv scala-2.10.6 scala"
+
+scp /hdisk1/home/dick/下载/hadoop-2.7.1.tar.gz dick@centos1:/dick/tool/
+ssh dick@centos1 "cd /dick/tool/; tar -xf hadoop-2.7.1.tar.gz"
+ssh dick@centos1 "cd /dick/tool/; mv hadoop-2.7.1 hadoop"
+
+scp /dick/tool/spark-2.1.0-bin-hadoop2.7.tgz dick@centos1:/dick/tool/
+ssh dick@centos1 "cd /dick/tool/; tar -xf spark-2.1.0-bin-hadoop2.7.tgz"
+ssh dick@centos1 "cd /dick/tool/; mv spark-2.1.0-bin-hadoop2.7 spark"
+
+cat <<EOF >> /etc/profile
+export JAVA_HOME=/dick/tool/jdk
+export HADOOP_HOME=/dick/tool/hadoop
+export SPARK_HOME=/dick/tool/spark
+export PATH=.:$PATH:$JAVA_HOME/bin:$JAVA_HOME/lib:$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$SPARK_HOME/sbin:$SPARK_HOME/bin
+EOF
+
+cat <<EOF > /dick/tool/spark/conf/spark-env.sh
+export SPARK_MASTER_PORT=7077
+export SPARK_WORKER_CORES=2
+export SPARK_WORKER_INSTANCES=4
+export SPARK_WORKER_MEMORY=1524M
+export SPARK_MASTER_HOST=192.168.199.233
+export SPARK_MASTER_IP=192.168.199.233
+export JAVA_HOME=/dick/tool/jdk
+EOF
+
+
+scp -p /home/dick/.bashrc dick@centos1:/home/dick/.bashrc
+scp -p /dick/tool/spark/conf/spark-env.sh dick@centos1:/dick/tool/spark/conf/spark-env.sh
+
+start-dfs.sh && spark_start-all.sh
+/dick/tool/spark/sbin/stop-all.sh
+/dick/tool/spark/sbin/start-all.sh
+
+# worker server
+sudo iptables -I INPUT -p tcp --dport 8081 -j ACCEPT
+sudo iptables -I INPUT -p tcp --dport 8082 -j ACCEPT
+sudo iptables -I INPUT -p tcp --dport 8083 -j ACCEPT
+sudo iptables -I INPUT -p tcp --dport 8084 -j ACCEPT
+sudo iptables -L
+
+
+ssh centos1 "${SPARK_HOME}/sbin/start-slave.sh spark://192.168.199.233:7077"
+ssh centos1 "${SPARK_HOME}/sbin/stop-slave.sh spark://192.168.199.233:7077"
+
+#++++++++++++++++++++++++++++++++++++++++++
+# End setup
+#++++++++++++++++++++++++++++++++++++++++++
+$SPARK_HOME/bin/spark-submit --class org.apache.spark.examples.SparkPi --master spark://192.168.199.233:7077 $SPARK_HOME/examples/jars/spark-examples_2.11-2.1.0.jar
+$SPARK_HOME/bin/spark-submit --num-executors 1 --class org.apache.spark.examples.SparkPi --master spark://192.168.199.233:7077 $SPARK_HOME/examples/jars/spark-examples_2.11-2.1.0.jar
+
+spark://192.168.199.233:7077
+
+traceroute -p 8081 192.168.199.116
+
+ssh -v -p 22 192.168.199.233
+ssh -v -p 8081 192.168.199.233
+ssh -v -p 8081 192.168.199.116
+
+
+
+sudo iptables -I INPUT -p tcp --dport 8081 -j ACCEPT
+sudo iptables -I INPUT -p tcp --dport 8082 -j ACCEPT
+sudo iptables -I INPUT -p tcp --dport 8083 -j ACCEPT
+sudo iptables -I INPUT -p tcp --dport 8084 -j ACCEPT
+sudo iptables -L
+
+/dick/myfirstScala/out/artifacts/myfirstScala_jar/myfirstScala.jar
+cd /app/hadoop/spark-1.1.0
+bin/
+
+spark-submit --master spark://myUbuntu:7077 --class class3.Join --executor-memory 1g /dick/myfirstScala/out/artifacts/myfirstScala_jar/myfirstScala.jar hdfs://hadoop1:9000/class3/join/reg.tsv hdfs://hadoop1:9000/class3/join/clk.tsv
+
+
+
+hdfs dfs -rm -r /output1/
+spark-submit --master spark://myUbuntu:7077 --class class3.SogouResult --executor-memory 1g /dick/myfirstScala/out/artifacts/myfirstScala_jar/myfirstScala.jar hdfs://localhost:9000/sougou/SogouQ1.txt hdfs://localhost:9000/output1
+
+hdfs dfs -ls /output1/
+hdfs dfs -cat /output1/part-00000 | head
+
+spark-submit --master spark://myUbuntu:7077 --class class3.SogouResult --executor-memory 1g /dick/myfirstScala/out/artifacts/myfirstScala_jar/myfirstScala.jar hdfs://localhost:9000/sougou/SogouQ3.txt hdfs://localhost:9000/output3
+hdfs dfs -getmerge hdfs://localhost:9000/output3 /tmp/result
+
+spark-submit --master spark://myUbuntu:7077 --class class9.MovieLensALS --executor-memory 1g /dick/myFirstMachineLearn/out/artifacts/myFirstMachineLearn_jar/myFirstMachineLearn.jar /tool/hadoop_practice/data/class8/movielens/data/ /tool/hadoop_practice/data/class8/movielens/personalRatings.txt
+
+spark-submit --master spark://myUbuntu:7077 --class class9.MovieLensALS --executor-memory 1g /dick/myFirstMachineLearn/out/artifacts/myFirstMachineLearn_jar/myFirstMachineLearn.jar hdfs://localhost:9000/class8/movielens/data/ hdfs://localhost:9000/class8/movielens/personalRatings.txt
+
+spark-submit --master spark://myUbuntu:7077 --class class9.MovieLensALS --executor-memory 1g /dick/myFirstMachineLearn/out/artifacts/myFirstMachineLearn_jar/myFirstMachineLearn.jar hdfs://localhost:9000/class8/movielens/data/ /tool/hadoop_practice/data/class8/movielens/personalRatings.txt
+
+hdfs dfs -getmerge hdfs://localhost:9000/output3 /tmp/result
+
+
+hdfs dfs -getmerge /class8/result_kmeans2 /tmp/result1
+
+
+hdfs://localhost:9000/class8/movielens/data/ hdfs://localhost:9000/class8/movielens/personalRatings.txt
+/tool/hadoop_practice/data/class8/movielens/data/ /tool/hadoop_practice/data/class8/movielens/personalRatings.txt
+
+
+/tool/hadoop_practice/data/class8/movielens/data/ /tool/hadoop_practice/data/class8/movielens/personalRatings.txt
+hdfs://localhost:9000/class8/movielens/data/ /tool/hadoop_practice/data/class8/movielens/personalRatings.txt
+
+
+hdfs dfs -put /tool/hadoop_practice/data/ /
+
+/tool/hadoop_practice/data/class8/movielens/personalRatings.txt
